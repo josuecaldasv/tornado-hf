@@ -1,0 +1,4 @@
+sentence_transformers
+scipy==1.12
+gensim
+rouge_score
