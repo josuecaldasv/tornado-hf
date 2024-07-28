@@ -11,6 +11,7 @@ from sentence_transformers import SentenceTransformer, util
 from collections import Counter
 import os
 import ast
+# import nltk
 
 
 model_st = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
@@ -18,6 +19,15 @@ stop_words_english = set(stopwords.words('english'))
 exact_match_metric = evaluate.load("exact_match")
 rouge_metric = evaluate.load("rouge")
 bleu_metric = evaluate.load("bleu")
+
+# def check_and_download(resource):
+#     try:
+#         nltk.data.find(f'tokenizers/{resource}')
+#     except LookupError:
+#         nltk.download(resource)
+
+# check_and_download('punkt')
+# check_and_download('stopwords')
 
 
 def process_json(url):
@@ -61,6 +71,8 @@ def process_json(url):
 
 def normalize_answer(text):
     """Lower text and remove punctuation, stop_words and extra whitespace."""
+    if isinstance(text, float):
+        text = str(text)
     text_without_stop_words = " ".join([word for word in text.split() if word.lower() not in stop_words_english])
     text_white_space_fix = " ".join(text_without_stop_words.split())
     text_without_punctuation = "".join(ch for ch in text_white_space_fix if ch not in string.punctuation)
@@ -189,11 +201,11 @@ def process_context(context, qa_pipeline, query, separator):
     document = context[document_index]
 
     return {
-        'Predicted Answer': results['answer'].strip(),
-        'Appended Context': context_concat,
-        'Context Interval': interval,
-        'Document Index': document_index,
-        'Document': document
+        'Predicted Answer': str(results['answer']).strip(),
+        'Appended Context': str(context_concat),
+        'Context Interval': str(interval),
+        'Document Index': str(document_index),
+        'Document': str(document)
     }
 
 
@@ -277,14 +289,27 @@ def read_excel_in_chunks(filename, cols_to_use, chunk_size=1000):
     if data:
         yield pd.DataFrame(data, columns=cols_to_use)
 
+def read_json_in_chunks(filename, cols_to_use, chunk_size=1000):
+    with open(filename, 'r') as file:
+        chunk = []
+        for line in file:
+            chunk.append(json.loads(line))
+            if len(chunk) == chunk_size:
+                yield pd.DataFrame(chunk, columns=cols_to_use)
+                chunk = []
+        if chunk:
+            yield pd.DataFrame(chunk, columns=cols_to_use)
+
 
 cols_to_use = [ 'Query', 'Correct Answer', 
                 'Positive Document', 'Positive Predicted Answer', 'EM Positive', 'Cosine Positive', 'Jaccard Positive', 
                 'Negative Document', 'Negative Predicted Answer', 'EM Negative', 'Cosine Negative', 'Jaccard Negative', 
                 'PosNeg Document', 'PosNeg Predicted Answer', 'EM PosNeg', 'Cosine PosNeg', 'Jaccard PosNeg']
 
+
 def compute_metrics(input_file, threshold):
-    df = pd.read_excel(input_file)
+    # Leer el archivo JSON
+    df = pd.read_json(input_file, orient='records', lines=True)
     df['Correct Answer'] = df['Correct Answer'].apply(ast.literal_eval)
     
     f1_scores_positive = []
@@ -390,3 +415,111 @@ def compute_metrics(input_file, threshold):
     }
     result_df = pd.DataFrame(result_data)
     return result_df
+
+# def compute_metrics(input_file, threshold):
+#     df = pd.read_excel(input_file)
+#     df['Correct Answer'] = df['Correct Answer'].apply(ast.literal_eval)
+    
+#     f1_scores_positive = []
+#     f1_scores_negative = []
+#     f1_scores_posneg = []
+#     rouge_scores_positive = []
+#     rouge_scores_negative = []
+#     rouge_scores_posneg = []
+#     bleu_scores_positive = []
+#     bleu_scores_negative = []
+#     bleu_scores_posneg = []
+
+#     em_scores_positive = df['EM Positive'].tolist()
+#     em_scores_negative = df['EM Negative'].tolist()
+#     em_scores_posneg = df['EM PosNeg'].tolist()
+    
+#     em_cosine_positive = df['Cosine Positive'].apply(lambda x: 1 if x >= threshold else 0).tolist()
+#     em_cosine_negative = df['Cosine Negative'].apply(lambda x: 1 if x >= threshold else 0).tolist()
+#     em_cosine_posneg = df['Cosine PosNeg'].apply(lambda x: 1 if x >= threshold else 0).tolist()
+    
+#     em_jaccard_positive = df['Jaccard Positive'].apply(lambda x: 1 if x >= threshold else 0).tolist()
+#     em_jaccard_negative = df['Jaccard Negative'].apply(lambda x: 1 if x >= threshold else 0).tolist()
+#     em_jaccard_posneg = df['Jaccard PosNeg'].apply(lambda x: 1 if x >= threshold else 0).tolist()
+
+#     for index, row in df.iterrows():
+#         correct_answer = row['Correct Answer']
+        
+#         f1_positive = max_f1_score(row['Positive Predicted Answer'], correct_answer)
+#         f1_scores_positive.append(f1_positive)
+        
+#         f1_negative = max_f1_score(row['Negative Predicted Answer'], correct_answer)
+#         f1_scores_negative.append(f1_negative)
+        
+#         f1_posneg = max_f1_score(row['PosNeg Predicted Answer'], correct_answer)
+#         f1_scores_posneg.append(f1_posneg)
+
+#         rouge_positive = rouge(row['Positive Predicted Answer'], correct_answer)
+#         rouge_scores_positive.append(rouge_positive)
+
+#         rouge_negative = rouge(row['Negative Predicted Answer'], correct_answer)
+#         rouge_scores_negative.append(rouge_negative)
+
+#         rouge_posneg = rouge(row['PosNeg Predicted Answer'], correct_answer)
+#         rouge_scores_posneg.append(rouge_posneg)
+
+#         bleu_positive = bleu(row['Positive Predicted Answer'], correct_answer)
+#         bleu_scores_positive.append(bleu_positive)
+
+#         bleu_negative = bleu(row['Negative Predicted Answer'], correct_answer)
+#         bleu_scores_negative.append(bleu_negative)
+
+#         bleu_posneg = bleu(row['PosNeg Predicted Answer'], correct_answer)
+#         bleu_scores_posneg.append(bleu_posneg)
+    
+#     avg_f1_positive = sum(f1_scores_positive) / len(f1_scores_positive) if f1_scores_positive else 0
+#     avg_f1_negative = sum(f1_scores_negative) / len(f1_scores_negative) if f1_scores_negative else 0
+#     avg_f1_posneg = sum(f1_scores_posneg) / len(f1_scores_posneg) if f1_scores_posneg else 0
+    
+#     avg_em_positive = sum(em_scores_positive) / len(em_scores_positive) if em_scores_positive else 0
+#     avg_em_negative = sum(em_scores_negative) / len(em_scores_negative) if em_scores_negative else 0
+#     avg_em_posneg = sum(em_scores_posneg) / len(em_scores_posneg) if em_scores_posneg else 0
+    
+#     avg_em_cosine_positive = sum(em_cosine_positive) / len(em_cosine_positive) if em_cosine_positive else 0
+#     avg_em_cosine_negative = sum(em_cosine_negative) / len(em_cosine_negative) if em_cosine_negative else 0
+#     avg_em_cosine_posneg = sum(em_cosine_posneg) / len(em_cosine_posneg) if em_cosine_posneg else 0
+    
+#     avg_em_jaccard_positive = sum(em_jaccard_positive) / len(em_jaccard_positive) if em_jaccard_positive else 0
+#     avg_em_jaccard_negative = sum(em_jaccard_negative) / len(em_jaccard_negative) if em_jaccard_negative else 0
+#     avg_em_jaccard_posneg = sum(em_jaccard_posneg) / len(em_jaccard_posneg) if em_jaccard_posneg else 0
+
+#     avg_rouge_positive = sum(rouge_scores_positive) / len(rouge_scores_positive) if rouge_scores_positive else 0
+#     avg_rouge_negative = sum(rouge_scores_negative) / len(rouge_scores_negative) if rouge_scores_negative else 0
+#     avg_rouge_posneg = sum(rouge_scores_posneg) / len(rouge_scores_posneg) if rouge_scores_posneg else 0
+
+#     avg_bleu_positive = sum(bleu_scores_positive) / len(bleu_scores_positive) if bleu_scores_positive else 0
+#     avg_bleu_negative = sum(bleu_scores_negative) / len(bleu_scores_negative) if bleu_scores_negative else 0
+#     avg_bleu_posneg = sum(bleu_scores_posneg) / len(bleu_scores_posneg) if bleu_scores_posneg else 0
+    
+#     result_data = {
+#         'Metric': [
+#             'F1', 
+#             'EM - String',
+#             f'EM - Cosine (threshold = {threshold})',
+#             f'EM - Jaccard (threshold = {threshold})',
+#             'RougeL',
+#             'Bleu'
+#         ],
+#         'Positive': [
+#             avg_f1_positive, avg_em_positive,
+#             avg_em_cosine_positive, avg_em_jaccard_positive,
+#             avg_rouge_positive, avg_bleu_positive
+#         ],
+#         'Negative': [
+#             avg_f1_negative, avg_em_negative,
+#             avg_em_cosine_negative, avg_em_jaccard_negative,
+#             avg_rouge_negative, avg_bleu_negative
+#         ],
+#         'Posnegative': [
+#             avg_f1_posneg, avg_em_posneg,
+#             avg_em_cosine_posneg, avg_em_jaccard_posneg,
+#             avg_rouge_posneg, avg_bleu_posneg
+#         ]
+#     }
+#     result_df = pd.DataFrame(result_data)
+#     return result_df

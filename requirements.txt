@@ -1,4 +1,15 @@
 sentence_transformers
+evaluate
 scipy==1.12
-gensim
 rouge_score
+requests
+transformers
+dataset
+torch
+openpyxl
+scikit-learn
+pandas
+nltk
+matplotlib
+adjustText
+seaborn
