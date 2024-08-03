@@ -112,6 +112,24 @@ def calculate_exact_match(predicted, correct_answers):
             max_start_match = start_match
     return max_start_match
 
+
+def calculate_exact_match_2v(predicted, correct_answers):
+    """Evaluar si la respuesta predicha coincide exactamente con alguna de las respuestas correctas."""
+    normalized_predicted = set(normalize_answer(predicted))
+    match = 0  # Iniciar con match = 0
+    for answer in correct_answers:
+        normalized_answer = set(normalize_answer(answer))
+        if all(word in normalized_predicted for word in normalized_answer):
+            match = 1
+            break  # Salir del bucle si se encuentra una coincidencia
+    return match
+
+
+def apply_exact_match_2v(row, pred, true):
+    """Calcular la similaridad usando la función calculate_exact_match_2v."""
+    return calculate_exact_match_2v(row[pred], row[true])
+
+
 def apply_exact_match(row, pred, true):
     """Calcular la similaridad usando la función calculate_em."""
     return calculate_exact_match(row[pred], row[true])
@@ -325,6 +343,10 @@ def compute_metrics(input_file, threshold):
     em_scores_positive = df['EM Positive'].tolist()
     em_scores_negative = df['EM Negative'].tolist()
     em_scores_posneg = df['EM PosNeg'].tolist()
+
+    em_scores_positive_2v = df['EM Positive - 2V'].tolist()
+    em_scores_negative_2v = df['EM Negative - 2V'].tolist()
+    em_scores_posneg_2v = df['EM PosNeg - 2V'].tolist()
     
     em_cosine_positive = df['Cosine Positive'].apply(lambda x: 1 if x >= threshold else 0).tolist()
     em_cosine_negative = df['Cosine Negative'].apply(lambda x: 1 if x >= threshold else 0).tolist()
@@ -371,6 +393,10 @@ def compute_metrics(input_file, threshold):
     avg_em_positive = sum(em_scores_positive) / len(em_scores_positive) if em_scores_positive else 0
     avg_em_negative = sum(em_scores_negative) / len(em_scores_negative) if em_scores_negative else 0
     avg_em_posneg = sum(em_scores_posneg) / len(em_scores_posneg) if em_scores_posneg else 0
+
+    avg_em_positive_2v = sum(em_scores_positive_2v) / len(em_scores_positive_2v) if em_scores_positive_2v else 0
+    avg_em_negative_2v = sum(em_scores_negative_2v) / len(em_scores_negative_2v) if em_scores_negative_2v else 0
+    avg_em_posneg_2v = sum(em_scores_posneg_2v) / len(em_scores_posneg_2v) if em_scores_posneg_2v else 0
     
     avg_em_cosine_positive = sum(em_cosine_positive) / len(em_cosine_positive) if em_cosine_positive else 0
     avg_em_cosine_negative = sum(em_cosine_negative) / len(em_cosine_negative) if em_cosine_negative else 0
@@ -392,23 +418,24 @@ def compute_metrics(input_file, threshold):
         'Metric': [
             'F1', 
             'EM - String',
+            'EM - String (2V)',
             f'EM - Cosine (threshold = {threshold})',
             f'EM - Jaccard (threshold = {threshold})',
             'RougeL',
             'Bleu'
         ],
         'Positive': [
-            avg_f1_positive, avg_em_positive,
+            avg_f1_positive, avg_em_positive, avg_em_positive_2v,
             avg_em_cosine_positive, avg_em_jaccard_positive,
             avg_rouge_positive, avg_bleu_positive
         ],
         'Negative': [
-            avg_f1_negative, avg_em_negative,
+            avg_f1_negative, avg_em_negative, avg_em_negative_2v,
             avg_em_cosine_negative, avg_em_jaccard_negative,
             avg_rouge_negative, avg_bleu_negative
         ],
         'Posnegative': [
-            avg_f1_posneg, avg_em_posneg,
+            avg_f1_posneg, avg_em_posneg, avg_em_posneg_2v,
             avg_em_cosine_posneg, avg_em_jaccard_posneg,
             avg_rouge_posneg, avg_bleu_posneg
         ]
